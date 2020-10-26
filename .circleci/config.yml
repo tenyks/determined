@@ -328,6 +328,9 @@ commands:
       enable-cors:
         type: boolean
         default: false
+      enable-auto-tls:
+        type: boolean
+        default: false
       agent-instance-type:
         type: string
         default: "p2.xlarge"
@@ -341,30 +344,26 @@ commands:
                [ true, << parameters.enable-cors >> ]
           steps:
           - run:
-              name: Deploy AWS cluster
-              command: |
-                det-deploy aws up \
-                  --cluster-id <<parameters.cluster-id>> \
-                  --det-version <<parameters.det-version>> \
-                  --agent-instance-type <<parameters.agent-instance-type>> \
-                  --max-dynamic-agents <<parameters.max-dynamic-agents>> \
-                  --keypair <<parameters.keypair>> \
-                  --enable-cors
+              name: Enable CORS
+              command: 'echo --enable-cors >> /tmp/det-deploy-extra-args'
       - when:
           condition:
             equal:
-               [ false, << parameters.enable-cors >> ]
+               [ true, << parameters.enable-auto-tls >> ]
           steps:
           - run:
-              name: Deploy AWS cluster
-              command: |
-                det-deploy aws up \
-                  --cluster-id <<parameters.cluster-id>> \
-                  --det-version <<parameters.det-version>> \
-                  --agent-instance-type <<parameters.agent-instance-type>> \
-                  --max-dynamic-agents <<parameters.max-dynamic-agents>> \
-                  --keypair <<parameters.keypair>> \
-
+              name: Enable auto TLS
+              command: 'echo --enable-auto-tls >> /tmp/det-deploy-extra-args'
+      - run:
+          name: Deploy AWS cluster
+          command: |
+            det-deploy aws up \
+              $(< /tmp/det-deploy-extra-args) \
+              --cluster-id <<parameters.cluster-id>> \
+              --det-version <<parameters.det-version>> \
+              --agent-instance-type <<parameters.agent-instance-type>> \
+              --max-dynamic-agents <<parameters.max-dynamic-agents>> \
+              --keypair <<parameters.keypair>>
   terminate-aws-cluster:
     parameters:
       cluster-id:
@@ -389,6 +388,9 @@ commands:
       max-dynamic-agents:
         type: integer
         default: 1
+      enable-auto-tls:
+        type: boolean
+        default: false
     steps:
       - set-cluster-id:
           cluster-id: <<parameters.cluster-id>>
@@ -397,10 +399,13 @@ commands:
           det-version: <<parameters.det-version>>
           agent-instance-type: <<parameters.agent-instance-type>>
           max-dynamic-agents: <<parameters.max-dynamic-agents>>
+          enable-auto-tls: <<parameters.enable-auto-tls>>
       - set-master-address-aws:
           cluster-id: ${CLUSTER_ID}
+          enable-tls: <<parameters.enable-auto-tls>>
       - wait-for-master:
           host: ${MASTER_HOST}
+          port: ${MASTER_PORT:-8080}
 
   terminate-gke-cluster:
     parameters:
@@ -512,10 +517,22 @@ commands:
     parameters:
       cluster-id:
         type: string
+      enable-tls:
+        type: boolean
+        default: false
     steps:
       - run: |
           MASTER_HOST=$(python .circleci/scripts/get_output_from_stack.py <<parameters.cluster-id>> DeterminedAddress)
           echo "export MASTER_HOST=\"${MASTER_HOST}\"" >> $BASH_ENV
+
+      - when:
+          condition:
+            equal:
+              [ true, <<parameters.enable-tls>> ]
+          steps:
+          - run:
+              command: |
+                echo "export MASTER_PORT=8443" >> $BASH_ENV
 
   set-master-address-gke:
     parameters:
@@ -549,13 +566,16 @@ commands:
 
   wait-for-master:
     parameters:
+      scheme:
+        type: string
+        default: "http"
       host:
         type: string
       port:
         type: string
         default: "8080"
     steps:
-      - run: python .circleci/scripts/wait_for_master.py http://<<parameters.host>>:<<parameters.port>>
+      - run: python .circleci/scripts/wait_for_master.py <<parameters.scheme>>://<<parameters.host>>:<<parameters.port>>
 
   upload-cloud-watch-to-s3:
     parameters:
@@ -1059,6 +1079,9 @@ jobs:
       parallelism:
         type: integer
         default: 1
+      enable-auto-tls:
+        type: boolean
+        default: false
       slack-mentions:
         type: string
         default: ""
@@ -1083,6 +1106,7 @@ jobs:
           det-version: ${CIRCLE_SHA1}
           agent-instance-type: <<parameters.agent-instance-type>>
           max-dynamic-agents: <<parameters.max-dynamic-agents>>
+          enable-auto-tls: <<parameters.enable-auto-tls>>
       - run-e2e-tests:
           mark: <<parameters.mark>>
           master-host: ${MASTER_HOST}
@@ -1370,6 +1394,7 @@ workflows:
             parameters:
               parallelism: [2]
               cluster-id-prefix: ["e2e-gpu"]
+              enable-auto-tls: [true]
               mark: ["e2e_gpu"]
               slack-mentions: ["${SLACK_USER_ID}"]
 
@@ -1414,6 +1439,7 @@ workflows:
             parameters:
               parallelism: [2]
               cluster-id-prefix: ["e2e-gpu"]
+              enable-auto-tls: [true]
               mark: ["e2e_gpu"]
               slack-mentions: ["${SLACK_USER_ID}"]
 

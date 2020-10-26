@@ -34,6 +34,7 @@ class cloudformation:
     VERSION = "Version"
     DB_PASSWORD = "DBPassword"
     ENABLE_CORS = "EnableCORS"
+    ENABLE_AUTO_TLS = "EnableAutoTLS"
     BOTO3_SESSION = "Boto3Session"
     AGENT_TAG_NAME = "AgentTagName"
     MAX_IDLE_AGENT_PERIOD = "MaxIdleAgentPeriod"

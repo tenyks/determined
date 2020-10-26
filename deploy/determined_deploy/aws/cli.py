@@ -57,6 +57,11 @@ def make_up_subparser(subparsers: argparse._SubParsersAction) -> None:
         help="allow CORS requests or not: true/false",
     )
     subparser.add_argument(
+        "--enable-auto-tls",
+        action="store_true",
+        help="enable automatic TLS configuration",
+    )
+    subparser.add_argument(
         "--agent-instance-type",
         type=str,
         help="instance type for agent",
@@ -186,6 +191,7 @@ def deploy_aws(args: argparse.Namespace) -> None:
     det_configs = {
         constants.cloudformation.KEYPAIR: args.keypair,
         constants.cloudformation.ENABLE_CORS: args.enable_cors,
+        constants.cloudformation.ENABLE_AUTO_TLS: args.enable_auto_tls,
         constants.cloudformation.MASTER_INSTANCE_TYPE: args.master_instance_type,
         constants.cloudformation.AGENT_INSTANCE_TYPE: args.agent_instance_type,
         constants.cloudformation.CLUSTER_ID: args.cluster_id,
