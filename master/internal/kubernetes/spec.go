@@ -23,6 +23,8 @@ import (
 	metaV1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
+const determinedK8InitContainerName = "determined-init-container"
+
 func (p *pod) configureResourcesRequirements() k8sV1.ResourceRequirements {
 	return k8sV1.ResourceRequirements{
 		Limits: map[k8sV1.ResourceName]resource.Quantity{
@@ -125,7 +127,7 @@ func (p *pod) configureVolumes(
 func (p *pod) configurePodSpec(
 	ctx *actor.Context,
 	volumes []k8sV1.Volume,
-	determinedInitContainers k8sV1.Container,
+	determinedInitContainer k8sV1.Container,
 	determinedContainer k8sV1.Container,
 	podSpec *k8sV1.Pod,
 ) *k8sV1.Pod {
@@ -141,6 +143,15 @@ func (p *pod) configurePodSpec(
 		podSpec.ObjectMeta.Labels = make(map[string]string)
 	}
 	podSpec.ObjectMeta.Labels[determinedLabel] = p.taskSpec.TaskID
+
+	nonDeterminedInitContainers := make([]k8sV1.Container, 0)
+	for _, container := range podSpec.Spec.InitContainers {
+		if container.Name != determinedK8InitContainerName {
+			nonDeterminedInitContainers = append(nonDeterminedInitContainers, container)
+			continue
+		}
+		determinedInitContainer.Resources = container.Resources
+	}
 
 	nonDeterminedContainers := make([]k8sV1.Container, 0)
 	for idx, container := range podSpec.Spec.Containers {
@@ -168,11 +179,12 @@ func (p *pod) configurePodSpec(
 			determinedContainer.VolumeDevices, podSpec.Spec.Containers[idx].VolumeDevices...)
 	}
 
+	podSpec.Spec.InitContainers = nonDeterminedInitContainers
+	podSpec.Spec.InitContainers = append(podSpec.Spec.InitContainers, determinedInitContainer)
 	podSpec.Spec.Containers = nonDeterminedContainers
 	podSpec.Spec.Containers = append(podSpec.Spec.Containers, determinedContainer)
 	podSpec.Spec.Volumes = append(podSpec.Spec.Volumes, volumes...)
 	podSpec.Spec.HostNetwork = p.taskSpec.TaskContainerDefaults.NetworkMode.IsHost()
-	podSpec.Spec.InitContainers = append(podSpec.Spec.InitContainers, determinedInitContainers)
 	podSpec.Spec.RestartPolicy = k8sV1.RestartPolicyNever
 
 	return podSpec
@@ -389,7 +401,7 @@ func configureInitContainer(
 	imagePullPolicy k8sV1.PullPolicy,
 ) k8sV1.Container {
 	return k8sV1.Container{
-		Name:    "determined-init-container",
+		Name:    determinedK8InitContainerName,
 		Command: []string{path.Join(initContainerWorkDir, etc.K8InitContainerEntryScriptResource)},
 		Args: []string{
 			fmt.Sprintf("%d", numArchives), initContainerTarSrcPath, initContainerTarDstPath},
