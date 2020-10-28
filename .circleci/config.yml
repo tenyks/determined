@@ -404,6 +404,7 @@ commands:
           cluster-id: ${CLUSTER_ID}
           enable-tls: <<parameters.enable-auto-tls>>
       - wait-for-master:
+          scheme: ${MASTER_SCHEME:-http}
           host: ${MASTER_HOST}
           port: ${MASTER_PORT:-8080}
 
@@ -533,6 +534,7 @@ commands:
           - run:
               command: |
                 echo "export MASTER_PORT=8443" >> $BASH_ENV
+                echo "export MASTER_SCHEME=https" >> $BASH_ENV
 
   set-master-address-gke:
     parameters:
