@@ -24,7 +24,11 @@ def set_master_cert_bundle(path: Optional[Union[str, bool]]) -> None:
 # always count on having an entry point we control (e.g., if someone is importing this code in a
 # notebook).
 try:
-    set_master_cert_bundle(os.environ["DET_MASTER_CERT_FILE"])
+    f = os.environ["DET_MASTER_CERT_FILE"]
+    if f == "False":
+        set_master_cert_bundle(False)
+    else:
+        set_master_cert_bundle(f)
 except KeyError:
     pass
 

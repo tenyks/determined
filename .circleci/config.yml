@@ -295,9 +295,10 @@ commands:
           name: Run e2e tests
           working_directory: ~/project/e2e_tests
           command: |
-            pytest -vv -s \
+            DET_MASTER_CERT_FILE=False pytest -vv -s \
             -m <<parameters.mark>> \
             --durations=0 \
+            --master-scheme="<<parameters.master-scheme>>" \
             --master-host="<<parameters.master-host>>" \
             --master-port="<<parameters.master-port>>" \
             --junit-xml="<<parameters.junit-path>>" \
