@@ -98,7 +98,11 @@ def http_connect_tunnel(master: str, service: str, master_cert: Optional[str]) -
     assert parsed_master.hostname is not None, "Failed to parse master address: {}".format(master)
 
     if parsed_master.scheme == "https":
-        context = ssl.create_default_context(cafile=master_cert)
+        if master_cert == "False":
+            # The default constructor does no verification.
+            context = ssl.SSLContext()
+        else:
+            context = ssl.create_default_context(cafile=master_cert)
         client = HTTPSProxyConnection(
             parsed_master.hostname, parsed_master.port, context=context
         )  # type: http.client.HTTPConnection

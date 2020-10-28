@@ -81,7 +81,7 @@ def _open_shell(master: str, shell: Command, additional_opts: List[str]) -> None
         # similar to `nc -X CONNECT -x ...` but without any dependency on external binaries.
         python = sys.executable
         proxy_cmd = "{} -m determined_cli.tunnel {} %h".format(python, master)
-        if isinstance(request.get_master_cert_bundle(), str):
+        if request.get_master_cert_bundle() is not None:
             proxy_cmd += ' "{}"'.format(request.get_master_cert_bundle())
 
         username = shell.agent_user_group["user"] or "root"
